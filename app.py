@@ -843,6 +843,77 @@ def api_clear_audit_logs():
     models.clear_user_audit_logs(session['user_id'])
     return jsonify({"success": True})
 
+# --- Admin Audit Dashboard ---
+
+def admin_required(f):
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        admin_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+
+        if not admin_email:
+            return jsonify({
+                "success": False,
+                "error": "Admin access is not configured."
+            }), 403
+
+        if "user_id" not in session or "vault_key" not in session:
+            return jsonify({
+                "success": False,
+                "error": "Unauthorized"
+            }), 401
+
+        user = models.get_user_by_id(session["user_id"])
+
+        if not user or user.get("email", "").strip().lower() != admin_email:
+            return jsonify({
+                "success": False,
+                "error": "Forbidden"
+            }), 403
+
+        return f(*args, **kwargs)
+
+    return decorated_function
+
+
+@app.route("/admin")
+@login_required
+def admin_dashboard():
+    admin_email = os.environ.get("ADMIN_EMAIL", "").strip().lower()
+    user = models.get_user_by_id(session["user_id"])
+
+    if (
+        not admin_email
+        or not user
+        or user.get("email", "").strip().lower() != admin_email
+    ):
+        return "Forbidden", 403
+
+    return render_template("admin.html")
+
+
+@app.route("/api/admin/audit-logs")
+@admin_required
+def api_admin_audit_logs():
+    with models.get_connection() as conn:
+        rows = conn.execute("""
+            SELECT
+                a.id,
+                u.username,
+                u.email,
+                a.action,
+                a.ip_address,
+                a.status,
+                a.timestamp
+            FROM audit_logs AS a
+            JOIN users AS u ON u.id = a.user_id
+            ORDER BY a.id DESC
+            LIMIT 200
+        """).fetchall()
+
+    return jsonify({
+        "success": True,
+        "logs": [dict(row) for row in rows]
+    })
 # --- Main Entrypoint for Local and Azure Deployment ---
 
 if __name__ == '__main__':
