@@ -1,0 +1,874 @@
+{% extends "base.html" %}
+
+{% block title %}SentinelVault - Industrial Password Storage{% endblock %}
+
+{% block content %}
+<div class="app-layout">
+    <!-- Sidebar Navigation -->
+    <aside class="sidebar">
+        <div class="sidebar-header">
+            <a href="/" class="brand-badge">
+                <div class="brand-icon">🛡️</div>
+                <div>
+                    <div class="brand-title">SentinelVault</div>
+                    <span class="sidebar-version">v2.4-IND</span>
+                </div>
+            </a>
+        </div>
+
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Vault Records</div>
+            <a class="nav-item active" data-view="all" data-sound="tab">
+                <div class="nav-item-content"><span>📁</span> All Items</div>
+                <span class="nav-badge" id="badge-count-all">0</span>
+            </a>
+            <a class="nav-item" data-view="login" data-sound="tab">
+                <div class="nav-item-content"><span>🔑</span> Logins</div>
+                <span class="nav-badge" id="badge-count-login">0</span>
+            </a>
+            <a class="nav-item" data-view="card" data-sound="tab">
+                <div class="nav-item-content"><span>💳</span> Cards</div>
+                <span class="nav-badge" id="badge-count-card">0</span>
+            </a>
+            <a class="nav-item" data-view="note" data-sound="tab">
+                <div class="nav-item-content"><span>📝</span> Secure Notes</div>
+                <span class="nav-badge" id="badge-count-note">0</span>
+            </a>
+            <a class="nav-item" data-view="api_key" data-sound="tab">
+                <div class="nav-item-content"><span>⚡</span> API Keys</div>
+                <span class="nav-badge" id="badge-count-api_key">0</span>
+            </a>
+            <a class="nav-item" data-view="identity" data-sound="tab">
+                <div class="nav-item-content"><span>🪪</span> Identities</div>
+                <span class="nav-badge" id="badge-count-identity">0</span>
+            </a>
+            <a class="nav-item" data-view="favorites" data-sound="tab">
+                <div class="nav-item-content"><span>★</span> Favorites</div>
+                <span class="nav-badge" id="badge-count-favorites">0</span>
+            </a>
+            <a class="nav-item" data-view="trash" data-sound="tab">
+                <div class="nav-item-content"><span>🗑️</span> Trash</div>
+                <span class="nav-badge" id="badge-count-trash">0</span>
+            </a>
+
+            <div class="nav-section-title">Security & Tools</div>
+            <a class="nav-item" data-view="audit" data-sound="tab">
+                <div class="nav-item-content"><span>🛡️</span> Security Audit</div>
+            </a>
+            <a class="nav-item" data-view="generator" data-sound="tab">
+                <div class="nav-item-content"><span>🎲</span> Password Generator</div>
+            </a>
+            <a class="nav-item" data-view="activity" data-sound="tab">
+                <div class="nav-item-content"><span>📜</span> Activity Log</div>
+            </a>
+            <a class="nav-item" data-view="settings" data-sound="tab">
+                <div class="nav-item-content"><span>⚙️</span> Settings</div>
+            </a>
+        </nav>
+
+        <div class="sidebar-footer">
+            <div class="user-pill">
+                <div class="user-avatar" id="user-display-avatar">U</div>
+                <div class="user-info">
+                    <div class="user-name" id="user-display-name">Master Admin</div>
+                    <div class="user-email" id="user-display-email">admin@sentinel.io</div>
+                </div>
+            </div>
+            <a href="/logout" class="btn-icon-only btn-outline" data-sound="click" title="Logout" style="font-size:16px;">🚪</a>
+        </div>
+    </aside>
+
+    <!-- Main Workspace -->
+    <main class="main-wrapper">
+        <!-- Top Control Header -->
+        <header class="top-header">
+            <div class="search-box-container">
+                <span class="search-icon">🔍</span>
+                <input type="text" id="global-search-input" class="search-input" placeholder="Search passwords, tags, usernames... (Ctrl+K)" />
+                <span class="search-shortcut">Ctrl+K</span>
+            </div>
+
+            <div class="header-actions">
+                <button type="button" id="btn-sound-toggle" class="btn btn-outline" onclick="app.toggleSound()" title="Toggle Sound Effects">
+                    🔊 Sound: ON
+                </button>
+                <button type="button" id="btn-theme-toggle" class="btn btn-outline" onclick="app.toggleTheme()" title="Toggle Theme">
+                    ☀️ Light
+                </button>
+                <button type="button" class="btn btn-secondary" onclick="app.lockVault()" data-sound="lock" title="Lock Vault (Ctrl+L)">
+                    🔒 Lock
+                </button>
+                <button type="button" class="btn btn-primary" onclick="app.openAddModal()" data-sound="click">
+                    <span>+ New Item</span>
+                </button>
+            </div>
+        </header>
+
+        <!-- View Body Content -->
+        <div class="content-area">
+            
+            <!-- SECTION 1: Vault Items List Grid -->
+            <section id="view-vault-list">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h1 class="view-heading" id="view-current-title">All Vault Items</h1>
+                        <span class="view-subcount" id="view-current-count">(0)</span>
+                    </div>
+
+                    <div class="view-controls">
+                        <select id="sort-selector" class="select-filter">
+                            <option value="updated">Recently Updated</option>
+                            <option value="title">Alphabetical (A-Z)</option>
+                            <option value="created">Recently Created</option>
+                            <option value="strength">Password Strength</option>
+                        </select>
+                        <button id="btn-empty-trash" class="btn btn-danger btn-sm hidden" onclick="app.emptyTrash()">
+                            Empty Trash
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Vault Items Cards -->
+                <div id="vault-items-grid" class="vault-grid"></div>
+
+                <!-- Empty State -->
+                <div id="vault-empty-state" class="empty-state hidden">
+                    <div class="empty-state-icon">🔒</div>
+                    <div class="empty-state-title">No Vault Items Found</div>
+                    <p class="empty-state-desc">Your vault is ready. Add your first login, credit card, API token, or secure note.</p>
+                    <button class="btn btn-primary" onclick="app.openAddModal()">+ Add New Item</button>
+                </div>
+            </section>
+
+            <!-- SECTION 2: Security Audit Dashboard -->
+            <section id="view-security-audit" class="hidden">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h1 class="view-heading">Security Audit & Vulnerability Assessment</h1>
+                    </div>
+                    <button class="btn btn-primary" onclick="app.runSecurityAudit()" data-sound="click">
+                        🔄 Re-Scan Vault
+                    </button>
+                </div>
+
+                <div id="audit-loading-state" class="empty-state hidden">
+                    <div class="empty-state-icon" style="animation: spin 1s infinite linear;">🔄</div>
+                    <div class="empty-state-title">Auditing Vault Integrity...</div>
+                    <p class="empty-state-desc">Checking NIST entropy, detecting password reuse, and querying HaveIBeenPwned via k-Anonymity SHA-1 prefix.</p>
+                </div>
+
+                <div id="audit-results-content">
+                    <div class="audit-overview-card">
+                        <div class="score-circle-wrapper">
+                            <div class="score-display" id="audit-score-circle" style="--score-pct: 95;">
+                                <div class="score-inner">
+                                    <span class="score-number" id="audit-score-num">95</span>
+                                    <span class="score-grade" id="audit-score-grade">Grade A+</span>
+                                </div>
+                            </div>
+                            <div>
+                                <h3 style="font-size:1.2rem; font-weight:700;">Overall Security Health</h3>
+                                <p style="font-size:0.85rem; color:var(--text-secondary); max-width:440px;">
+                                    Based on cryptographic entropy, zero password reuse, and automated cross-referencing against over 10 billion known data breach records.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="audit-metrics-grid">
+                        <div class="metric-card">
+                            <span class="metric-label">Total Vault Records</span>
+                            <span class="metric-value" id="metric-total-items">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Weak Passwords</span>
+                            <span class="metric-value metric-val-warning" id="metric-weak-pass">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Reused Passwords</span>
+                            <span class="metric-value metric-val-warning" id="metric-reused-pass">0</span>
+                        </div>
+                        <div class="metric-card">
+                            <span class="metric-label">Compromised / Pwned</span>
+                            <span class="metric-value metric-val-danger" id="metric-pwned-pass">0</span>
+                        </div>
+                    </div>
+
+                    <h3 style="margin-bottom:14px; font-size:1rem; font-weight:700;">Security Findings & Action Items</h3>
+                    <div id="audit-flagged-items" style="display:flex; flex-direction:column; gap:10px;"></div>
+                </div>
+            </section>
+
+            <!-- SECTION 3: Industrial Password Generator View -->
+            <section id="view-password-generator" class="hidden">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h1 class="view-heading">Industrial Password Generator</h1>
+                    </div>
+                </div>
+
+                <div style="max-width:680px; margin:0 auto; background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:32px; box-shadow:var(--shadow-md);">
+                    
+                    <!-- Result Box -->
+                    <div style="position:relative; margin-bottom:20px;">
+                        <input type="text" id="gen-result-password" class="form-control font-mono" style="font-size:1.3rem; padding:14px 100px 14px 18px; letter-spacing:0.04em;" readonly />
+                        <div style="position:absolute; right:10px; top:50%; transform:translateY(-50%); display:flex; gap:6px;">
+                            <button class="btn btn-secondary btn-icon-only" onclick="app.rollNewPassword()" title="Generate New">🔄</button>
+                            <button class="btn btn-primary btn-icon-only" onclick="app.copyGeneratedPassword()" title="Copy to Clipboard">📋</button>
+                        </div>
+                    </div>
+
+                    <!-- Live Strength Gauge -->
+                    <div class="strength-meter-container" style="margin-bottom:24px;">
+                        <div class="strength-bar-bg" style="height:7px;">
+                            <div id="gen-strength-fill" class="strength-bar-fill" style="width:100%; background-color:#00f0ff;"></div>
+                        </div>
+                        <div class="strength-meta">
+                            <span id="gen-strength-label" style="font-weight:700; color:var(--color-primary);">Military Grade</span>
+                            <span id="gen-entropy-label">128 bits entropy</span>
+                        </div>
+                    </div>
+
+                    <!-- Generator Controls -->
+                    <div style="display:flex; flex-direction:column; gap:20px;">
+                        <div>
+                            <div style="display:flex; justify-content:space-between; margin-bottom:8px; font-weight:600; font-size:0.9rem;">
+                                <span>Length</span>
+                                <span id="gen-len-display" class="font-mono" style="color:var(--color-primary);">20</span>
+                            </div>
+                            <input type="range" id="gen-slider-len" min="8" max="64" value="20" style="width:100%; cursor:pointer;" oninput="app.updateStandaloneGenerator()" />
+                        </div>
+
+                        <!-- Generator Mode -->
+                        <div style="display:flex; gap:20px; font-size:0.9rem; font-weight:600;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="gen-mode" id="gen-mode-chars" checked onchange="app.updateStandaloneGenerator()" />
+                                Character Mode
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="radio" name="gen-mode" id="gen-mode-passphrase" onchange="app.updateStandaloneGenerator()" />
+                                Passphrase Mode (Diceware)
+                            </label>
+                        </div>
+
+                        <!-- Checkboxes -->
+                        <div style="display:grid; grid-template-columns:1fr 1fr; gap:12px; font-size:0.88rem;">
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="gen-chk-upper" checked onchange="app.updateStandaloneGenerator()" />
+                                Uppercase (A-Z)
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="gen-chk-lower" checked onchange="app.updateStandaloneGenerator()" />
+                                Lowercase (a-z)
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="gen-chk-digits" checked onchange="app.updateStandaloneGenerator()" />
+                                Digits (0-9)
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="gen-chk-symbols" checked onchange="app.updateStandaloneGenerator()" />
+                                Symbols (!@#$%^&*)
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer; grid-column:span 2;">
+                                <input type="checkbox" id="gen-chk-ambig" checked onchange="app.updateStandaloneGenerator()" />
+                                Avoid ambiguous characters (0, O, 1, l, I)
+                            </label>
+                        </div>
+
+                        <div style="display:flex; gap:12px; margin-top:10px;">
+                            <button class="btn btn-secondary" style="flex:1;" onclick="app.rollNewPassword()" data-sound="generate">
+                                🎲 Roll New
+                            </button>
+                            <button class="btn btn-primary" style="flex:1;" onclick="app.useGeneratedInNewItem()" data-sound="click">
+                                ➕ Save in New Item
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- SECTION 4: Activity / Audit Log -->
+            <section id="view-activity-log" class="hidden">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h1 class="view-heading">Security Audit & Activity Logs</h1>
+                    </div>
+                    <div style="display:flex; gap:10px;">
+                        <button class="btn btn-secondary" onclick="app.loadActivityLogs()" data-sound="click">🔄 Refresh</button>
+                        <button class="btn btn-danger" onclick="app.clearActivityLogs()" data-sound="click">Clear Log</button>
+                    </div>
+                </div>
+
+                <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); overflow:hidden;">
+                    <div id="activity-logs-list" style="display:flex; flex-direction:column;"></div>
+                </div>
+            </section>
+
+            <!-- SECTION 5: Settings -->
+            <section id="view-settings" class="hidden">
+                <div class="view-header">
+                    <div class="view-title-group">
+                        <h1 class="view-heading">Vault Settings & Security Preferences</h1>
+                    </div>
+                </div>
+
+                <div style="max-width:760px; display:flex; flex-direction:column; gap:24px;">
+                    <!-- Auto-Lock Preference -->
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
+                        <h3 style="margin-bottom:6px; font-size:1.05rem;">Inactivity Auto-Lock</h3>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+                            Automatically lock vault with a frosted glass screen when inactive.
+                        </p>
+                        <div style="display:flex; gap:12px; align-items:center;">
+                            <select id="setting-auto-lock" class="form-control" style="max-width:240px;">
+                                <option value="1">1 Minute</option>
+                                <option value="5">5 Minutes</option>
+                                <option value="15" selected>15 Minutes (Default)</option>
+                                <option value="30">30 Minutes</option>
+                                <option value="60">1 Hour</option>
+                                <option value="0">Never (Not Recommended)</option>
+                            </select>
+                            <button class="btn btn-primary" onclick="app.savePreferences()">Save</button>
+                        </div>
+                    </div>
+
+                    <!-- Sound & Audio Preferences -->
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
+                        <h3 style="margin-bottom:6px; font-size:1.05rem;">Pleasant Sound Feedback</h3>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+                            Synthesized Web Audio clicks, unlock chimes, and copy confirmations.
+                        </p>
+                        <div style="display:flex; flex-direction:column; gap:14px;">
+                            <label style="display:flex; align-items:center; gap:10px; cursor:pointer;">
+                                <input type="checkbox" id="setting-sound-enabled" checked onchange="app.savePreferences()" />
+                                <strong>Enable Audio Effects</strong>
+                            </label>
+                            <div style="display:flex; align-items:center; gap:14px;">
+                                <span style="font-size:0.85rem; color:var(--text-muted); width:80px;">Volume:</span>
+                                <input type="range" id="setting-sound-volume" min="0" max="1" step="0.05" value="0.35" style="width:200px;" oninput="window.soundEngine.setVolume(this.value); window.soundEngine.play('click');" onchange="app.savePreferences()" />
+                                <button class="btn btn-secondary btn-sm" onclick="window.soundEngine.play('unlock')">Test Chime 🔔</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Two-Factor Authentication -->
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
+                        <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:8px;">
+                            <h3 style="font-size:1.05rem;">Two-Factor Authentication (TOTP)</h3>
+                            <span id="setting-2fa-status" class="nav-badge">Disabled</span>
+                        </div>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+                            Secure master account access with Google Authenticator, Microsoft Authenticator, or Authy.
+                        </p>
+                        <button class="btn btn-secondary" onclick="app.open2FASetupModal()">Configure 2FA 📱</button>
+                    </div>
+
+                    <!-- Master Password Management -->
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
+                        <h3 style="margin-bottom:6px; font-size:1.05rem;">Master Password</h3>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+                            Changing your master password re-encrypts all items in your vault with a newly derived 256-bit symmetric key.
+                        </p>
+                        <button class="btn btn-secondary" onclick="app.openMasterPasswordModal()">Change Master Password 🔑</button>
+                    </div>
+
+                    <!-- Vault Import & Export -->
+                    <div style="background:var(--bg-surface); border:1px solid var(--border-subtle); border-radius:var(--radius-lg); padding:24px;">
+                        <h3 style="margin-bottom:6px; font-size:1.05rem;">Import & Export Vault</h3>
+                        <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:16px;">
+                            Export encrypted backups or import items from 1Password, Bitwarden, LastPass, or Chrome CSV.
+                        </p>
+                        <div style="display:flex; gap:12px;">
+                            <button class="btn btn-secondary" onclick="app.openExportModal()">📥 Export Vault</button>
+                            <button class="btn btn-secondary" onclick="app.openImportModal()">📤 Import Data</button>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </main>
+</div>
+
+<!-- ================= MODALS ================= -->
+
+<!-- Modal 1: Add / Edit Vault Item -->
+<div id="modal-add-item" class="modal-backdrop">
+    <div class="modal-container">
+        <div class="modal-header">
+            <h2 class="modal-title" id="modal-item-title">Add New Vault Item</h2>
+            <button class="modal-close" onclick="app.closeModal('modal-add-item')">&times;</button>
+        </div>
+
+        <form id="form-item" onsubmit="app.saveItem(event)">
+            <input type="hidden" id="input-item-id" />
+            <div class="modal-body">
+                <!-- Category Tabs -->
+                <div class="category-tabs">
+                    <button type="button" class="cat-tab-btn active" data-category="login" onclick="app.setFormCategory('login')">🔑 Login</button>
+                    <button type="button" class="cat-tab-btn" data-category="card" onclick="app.setFormCategory('card')">💳 Card</button>
+                    <button type="button" class="cat-tab-btn" data-category="note" onclick="app.setFormCategory('note')">📝 Note</button>
+                    <button type="button" class="cat-tab-btn" data-category="api_key" onclick="app.setFormCategory('api_key')">⚡ API Key</button>
+                    <button type="button" class="cat-tab-btn" data-category="identity" onclick="app.setFormCategory('identity')">🪪 Identity</button>
+                </div>
+
+                <!-- Common Field: Title -->
+                <div class="form-group">
+                    <label class="form-label">Item Title *</label>
+                    <input type="text" id="input-title" class="form-control" placeholder="e.g. GitHub Production / AWS Root" required />
+                </div>
+
+                <!-- CATEGORY: LOGIN -->
+                <div id="cat-fields-login" class="cat-form-group" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Username / Email</label>
+                        <input type="text" id="input-login-username" class="form-control font-mono" placeholder="dev@company.com" />
+                    </div>
+
+                    <div class="form-group">
+                        <div style="display:flex; justify-content:space-between; align-items:center;">
+                            <label class="form-label">Password</label>
+                            <button type="button" class="btn btn-outline btn-sm" style="padding:2px 8px; font-size:0.75rem;" onclick="document.getElementById('input-login-password').value = CryptoHelper.generatePassword(); app.handlePasswordInput(document.getElementById('input-login-password').value); window.soundEngine.play('generate');">🎲 Generate</button>
+                        </div>
+                        <div class="password-input-wrapper">
+                            <input type="password" id="input-login-password" class="form-control font-mono" placeholder="Enter or generate secret" />
+                            <div class="password-actions-inline">
+                                <button type="button" class="btn-inline-icon" onclick="app.toggleMask('input-login-password')">👁️</button>
+                            </div>
+                        </div>
+                        <div class="strength-meter-container">
+                            <div class="strength-bar-bg">
+                                <div id="modal-strength-fill" class="strength-bar-fill"></div>
+                            </div>
+                            <div class="strength-meta">
+                                <span id="modal-strength-label">Empty</span>
+                                <span id="modal-entropy-label">0 bits</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Website URL</label>
+                        <input type="url" id="input-login-url" class="form-control" placeholder="https://github.com/login" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Two-Factor Authenticator Secret (Optional Base32)</label>
+                        <input type="text" id="input-login-totp" class="form-control font-mono" placeholder="JBSWY3DPEHPK3PXP" />
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Encrypted Notes</label>
+                        <textarea id="input-login-notes" class="form-control" rows="2" placeholder="Security questions, backup pin..."></textarea>
+                    </div>
+                </div>
+
+                <!-- CATEGORY: CARD -->
+                <div id="cat-fields-card" class="cat-form-group hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Cardholder Name</label>
+                        <input type="text" id="input-card-holder" class="form-control" placeholder="John Doe" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Card Number</label>
+                        <input type="text" id="input-card-number" class="form-control font-mono" placeholder="4000 1234 5678 9010" />
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Expiration (MM/YY)</label>
+                            <input type="text" id="input-card-expiry" class="form-control font-mono" placeholder="12/28" />
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">CVV / CVC</label>
+                            <input type="password" id="input-card-cvv" class="form-control font-mono" placeholder="123" maxlength="4" />
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Card PIN</label>
+                            <input type="password" id="input-card-pin" class="form-control font-mono" placeholder="••••" maxlength="6" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea id="input-card-notes" class="form-control" rows="2" placeholder="Bank telephone, billing address..."></textarea>
+                    </div>
+                </div>
+
+                <!-- CATEGORY: NOTE -->
+                <div id="cat-fields-note" class="cat-form-group hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Encrypted Note Content</label>
+                        <textarea id="input-note-content" class="form-control font-mono" rows="8" placeholder="Enter sensitive notes, recovery phrases, server config..."></textarea>
+                    </div>
+                </div>
+
+                <!-- CATEGORY: API KEY -->
+                <div id="cat-fields-api_key" class="cat-form-group hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Service / Platform</label>
+                        <input type="text" id="input-api-service" class="form-control" placeholder="e.g. OpenAI / AWS / Stripe" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Key / Access Key ID</label>
+                        <input type="text" id="input-api-key" class="form-control font-mono" placeholder="pk_live_..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">API Secret / Private Token</label>
+                        <input type="password" id="input-api-secret" class="form-control font-mono" placeholder="sk_live_..." />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Notes</label>
+                        <textarea id="input-api-notes" class="form-control" rows="2" placeholder="Scopes, rate limits, renewal dates..."></textarea>
+                    </div>
+                </div>
+
+                <!-- CATEGORY: IDENTITY -->
+                <div id="cat-fields-identity" class="cat-form-group hidden" style="display:flex; flex-direction:column; gap:14px;">
+                    <div class="form-group">
+                        <label class="form-label">Full Legal Name</label>
+                        <input type="text" id="input-id-fullname" class="form-control" placeholder="John A. Doe" />
+                    </div>
+                    <div style="display:flex; gap:12px;">
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Email</label>
+                            <input type="email" id="input-id-email" class="form-control" placeholder="john@example.com" />
+                        </div>
+                        <div class="form-group" style="flex:1;">
+                            <label class="form-label">Phone</label>
+                            <input type="tel" id="input-id-phone" class="form-control" placeholder="+1 (555) 019-2834" />
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Passport / National ID Number</label>
+                        <input type="text" id="input-id-number" class="form-control font-mono" placeholder="A12345678" />
+                    </div>
+                    <div class="form-group">
+                        <label class="form-label">Address</label>
+                        <textarea id="input-id-address" class="form-control" rows="2" placeholder="Street, City, State, ZIP, Country"></textarea>
+                    </div>
+                </div>
+
+                <!-- Common Metadata: Folder & Tags -->
+                <div style="display:flex; gap:12px;">
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-label">Folder</label>
+                        <input type="text" id="input-folder" class="form-control" placeholder="Personal" value="Personal" />
+                    </div>
+                    <div class="form-group" style="flex:1;">
+                        <label class="form-label">Tags (comma-separated)</label>
+                        <input type="text" id="input-tags" class="form-control" placeholder="work, finance, critical" />
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="app.closeModal('modal-add-item')">Cancel</button>
+                <button type="submit" class="btn btn-primary" data-sound="success">Save Item</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 2: View Item Details -->
+<div id="modal-view-item" class="modal-backdrop">
+    <div class="modal-container">
+        <div class="modal-header">
+            <span style="font-size:0.85rem; color:var(--text-muted); font-weight:600;">Vault Item Inspection</span>
+            <button class="modal-close" onclick="app.closeModal('modal-view-item')">&times;</button>
+        </div>
+        <div class="modal-body" id="view-modal-content"></div>
+    </div>
+</div>
+
+<!-- Modal 3: Two-Factor Authentication Setup -->
+<div id="modal-2fa-setup" class="modal-backdrop">
+    <div class="modal-container" style="max-width:440px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Setup 2-Factor Authentication</h2>
+            <button class="modal-close" onclick="app.closeModal('modal-2fa-setup')">&times;</button>
+        </div>
+        <div class="modal-body" style="text-align:center;">
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px;">
+                Scan this QR code with Google Authenticator, Microsoft Authenticator, or 1Password:
+            </p>
+            <div id="qr-code-display" style="background:#fff; padding:12px; border-radius:var(--radius-md); display:inline-block; margin-bottom:14px;"></div>
+            <div style="font-size:0.8rem; color:var(--text-muted); margin-bottom:14px;">
+                Manual Setup Key: <code id="qr-secret-key" class="font-mono" style="color:var(--color-primary); font-weight:700;"></code>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Enter 6-digit code to verify & enable:</label>
+                <input type="text" id="input-2fa-verify-code" class="form-control font-mono" placeholder="123456" maxlength="6" style="text-align:center; font-size:1.3rem; letter-spacing:0.2em;" />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="app.closeModal('modal-2fa-setup')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="app.confirm2FAActivation()">Verify & Enable</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 4: Change Master Password -->
+<div id="modal-change-master" class="modal-backdrop">
+    <div class="modal-container" style="max-width:460px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Change Master Password</h2>
+            <button class="modal-close" onclick="app.closeModal('modal-change-master')">&times;</button>
+        </div>
+        <form id="form-change-master" onsubmit="app.submitMasterPasswordChange(event)">
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">Current Master Password</label>
+                    <input type="password" id="input-cur-master" class="form-control font-mono" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">New Master Password (Min 12 chars)</label>
+                    <input type="password" id="input-new-master" class="form-control font-mono" required />
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Confirm New Master Password</label>
+                    <input type="password" id="input-confirm-master" class="form-control font-mono" required />
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline" onclick="app.closeModal('modal-change-master')">Cancel</button>
+                <button type="submit" class="btn btn-primary">Re-Encrypt Vault</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Modal 5: Export Vault -->
+<div id="modal-export-vault" class="modal-backdrop">
+    <div class="modal-container" style="max-width:460px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Export Vault Records</h2>
+            <button class="modal-close" onclick="app.closeModal('modal-export-vault')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px;">
+                Enter your Master Password to decrypt and export your vault records.
+            </p>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Export Format</label>
+                <select id="export-format" class="form-control">
+                    <option value="json">Encrypted JSON Archive (Recommended)</option>
+                    <option value="csv">Standard CSV (Plaintext Warning)</option>
+                </select>
+            </div>
+            <div class="form-group">
+                <label class="form-label">Verify Master Password</label>
+                <input type="password" id="export-master-pass" class="form-control font-mono" required />
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="app.closeModal('modal-export-vault')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="app.executeVaultExport()">Download Export</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal 6: Import Vault -->
+<div id="modal-import-vault" class="modal-backdrop">
+    <div class="modal-container" style="max-width:520px;">
+        <div class="modal-header">
+            <h2 class="modal-title">Import Records into Vault</h2>
+            <button class="modal-close" onclick="app.closeModal('modal-import-vault')">&times;</button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Source Format</label>
+                <select id="import-format" class="form-control">
+                    <option value="json">Sentinel JSON Backup</option>
+                    <option value="csv">1Password / Bitwarden / Chrome CSV</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom:14px;">
+                <label class="form-label">Select File to Import (.json / .csv)</label>
+                <input type="file" id="import-file-input" class="form-control" accept=".json,.csv" />
+            </div>
+            <div class="form-group">
+                <label class="form-label">Or Paste Raw Content</label>
+                <textarea id="import-raw-text" class="form-control font-mono" rows="4" placeholder="Paste JSON or CSV text..."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button type="button" class="btn btn-outline" onclick="app.closeModal('modal-import-vault')">Cancel</button>
+            <button type="button" class="btn btn-primary" onclick="app.executeVaultImport()">Execute Import</button>
+        </div>
+    </div>
+</div>
+
+<!-- Lock Screen Frosted Glass Overlay -->
+<div id="lock-screen-overlay" class="lock-screen-overlay hidden">
+    <div class="lock-card animate-slide-in">
+        <div class="lock-icon-glow">🔒</div>
+        <div>
+            <h2 style="font-size:1.35rem; font-weight:700;">Vault Locked</h2>
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-top:4px;">
+                Session paused due to inactivity. Enter Master Password to resume.
+            </p>
+        </div>
+        <form onsubmit="event.preventDefault(); app.submitUnlock();">
+            <div class="form-group" style="margin-bottom:16px;">
+                <input type="password" id="input-unlock-password" class="form-control font-mono" placeholder="Master Password" required autofocus />
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%;">
+                Unlock Vault 🔓
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- Floating Clipboard Auto-Clear Bar -->
+<div id="clipboard-toast" class="clipboard-toast-bar hidden">
+    <div class="clipboard-bar-header">
+        <span id="clipboard-toast-label">Password copied!</span>
+        <button class="btn btn-outline btn-sm" style="padding:2px 6px; font-size:0.75rem;" onclick="CryptoHelper.wipeClipboard()">Clear Now</button>
+    </div>
+    <div class="clipboard-progress-bg">
+        <div id="clipboard-toast-progress" class="clipboard-progress-fill"></div>
+    </div>
+    <span id="clipboard-toast-timer" style="font-size:0.72rem; color:var(--text-muted); font-family:var(--font-mono);">Auto-clearing in 30s</span>
+</div>
+
+<!-- Toast Container for Notifications -->
+<div id="toast-container" class="toast-container"></div>
+
+<style>
+/* View Detail Modal Styles */
+.view-header-inline {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+    gap: 12px;
+}
+.header-action-group {
+    display: flex;
+    gap: 8px;
+}
+.view-fields-list {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+.view-detail-row {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    background: var(--bg-surface-elevated);
+    padding: 12px 14px;
+    border-radius: var(--radius-md);
+    border: 1px solid var(--border-subtle);
+}
+.detail-label {
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+}
+.detail-value-group {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+.detail-val-text {
+    font-size: 0.95rem;
+    color: var(--text-primary);
+    word-break: break-all;
+    flex: 1;
+}
+.link-url {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+.link-url:hover {
+    text-decoration: underline;
+}
+.note-box {
+    font-size: 0.88rem;
+    white-space: pre-wrap;
+    color: var(--text-primary);
+    line-height: 1.5;
+}
+.view-meta-footer {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 20px;
+    padding-top: 14px;
+    border-top: 1px solid var(--border-subtle);
+    font-size: 0.75rem;
+    color: var(--text-muted);
+}
+.font-mono {
+    font-family: var(--font-mono);
+}
+/* Activity Log Row */
+.activity-row {
+    display: flex;
+    align-items: center;
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border-subtle);
+    gap: 16px;
+    font-size: 0.85rem;
+}
+.activity-row:last-child {
+    border-bottom: none;
+}
+.activity-badge {
+    padding: 2px 8px;
+    border-radius: var(--radius-full);
+    font-size: 0.7rem;
+    font-weight: 700;
+}
+.badge-success { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+.badge-failed { background: rgba(239, 68, 68, 0.15); color: #f87171; }
+.activity-action {
+    flex: 1;
+}
+.activity-meta {
+    display: flex;
+    gap: 16px;
+    color: var(--text-muted);
+    font-size: 0.78rem;
+}
+.audit-flag-card {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 14px 18px;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+}
+.flag-details {
+    flex: 1;
+}
+.flag-title {
+    font-weight: 600;
+    font-size: 0.95rem;
+}
+.flag-reason {
+    font-size: 0.8rem;
+    color: var(--color-danger);
+}
+.audit-perfect-banner {
+    background: rgba(16, 185, 129, 0.08);
+    border: 1px solid rgba(16, 185, 129, 0.25);
+    border-radius: var(--radius-md);
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+.hidden { display: none !important; }
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+{% endblock %}

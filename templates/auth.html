@@ -1,0 +1,384 @@
+{% extends "base.html" %}
+
+{% block title %}SentinelVault - Enterprise Authentication{% endblock %}
+
+{% block content %}
+<div class="auth-page-wrapper">
+    <div class="auth-container animate-slide-in">
+        <div class="auth-brand">
+            <div class="brand-icon" style="width:48px; height:48px; font-size:24px;">🛡️</div>
+            <h1 class="brand-title" style="font-size:1.6rem;">SentinelVault</h1>
+            <p class="auth-subtitle">Zero-Knowledge Industrial Password Storage</p>
+        </div>
+
+        <!-- Auth Tabs (Login / Register) -->
+        <div class="auth-tabs" id="auth-tab-buttons">
+            <button class="auth-tab-btn active" id="tab-login-btn" onclick="showAuthTab('login')">Master Login</button>
+            <button class="auth-tab-btn" id="tab-register-btn" onclick="showAuthTab('register')">Create Vault</button>
+        </div>
+
+        <!-- Feedback Alert -->
+        <div id="auth-alert" class="alert-box hidden"></div>
+
+        <!-- Form 1: Master Login -->
+        <form id="form-login" class="auth-form" onsubmit="handleLoginSubmit(event)">
+            <div class="form-group">
+                <label class="form-label" for="login-username">Master Username or Email</label>
+                <input type="text" id="login-username" class="form-control" placeholder="admin@sentinel.io" required autofocus autocomplete="username" />
+            </div>
+
+            <div class="form-group">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <label class="form-label" for="login-password">Master Password</label>
+                </div>
+                <div class="password-input-wrapper">
+                    <input type="password" id="login-password" class="form-control font-mono" placeholder="••••••••••••••••" required autocomplete="current-password" />
+                    <button type="button" class="btn-inline-icon" onclick="togglePass('login-password')">👁️</button>
+                </div>
+            </div>
+
+            <!-- Optional 2FA Code input (visible if 2FA is required) -->
+            <div id="group-2fa-code" class="form-group hidden">
+                <label class="form-label" for="login-2fa-token">2FA Authenticator Code</label>
+                <input type="text" id="login-2fa-token" class="form-control font-mono" placeholder="6-digit code or backup key" maxlength="9" />
+            </div>
+
+            <button type="submit" id="btn-login-submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
+                <span>Unlock Vault</span> 🔓
+            </button>
+        </form>
+
+        <!-- Form 2: Register New Vault -->
+        <form id="form-register" class="auth-form hidden" onsubmit="handleRegisterSubmit(event)">
+            <div class="form-group">
+                <label class="form-label" for="reg-username">Master Username</label>
+                <input type="text" id="reg-username" class="form-control" placeholder="e.g. security_lead" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="reg-email">Recovery Email</label>
+                <input type="email" id="reg-email" class="form-control" placeholder="user@company.com" required />
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="reg-password">Master Password (AES-256 Key Derivation)</label>
+                <div class="password-input-wrapper">
+                    <input type="password" id="reg-password" class="form-control font-mono" placeholder="Min 12 characters" required oninput="evaluateRegStrength(this.value)" />
+                    <button type="button" class="btn-inline-icon" onclick="togglePass('reg-password')">👁️</button>
+                </div>
+                <!-- Strength bar -->
+                <div class="strength-meter-container">
+                    <div class="strength-bar-bg">
+                        <div id="reg-strength-fill" class="strength-bar-fill"></div>
+                    </div>
+                    <div class="strength-meta">
+                        <span id="reg-strength-label">Strength: Empty</span>
+                        <span id="reg-entropy-label">0 bits</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="reg-confirm-password">Confirm Master Password</label>
+                <input type="password" id="reg-confirm-password" class="form-control font-mono" placeholder="Confirm password" required />
+            </div>
+
+            <button type="submit" id="btn-register-submit" class="btn btn-primary" style="width:100%; margin-top:8px;">
+                <span>Initialize Vault</span> 🛡️
+            </button>
+        </form>
+
+        <!-- Recovery Kit Modal on successful registration -->
+        <div id="recovery-kit-box" class="recovery-kit-wrapper hidden">
+            <h3 style="color:var(--color-success); margin-bottom:8px;">🎉 Vault Created Successfully!</h3>
+            <p style="font-size:0.85rem; color:var(--text-secondary); margin-bottom:14px;">
+                Save your Emergency Recovery Codes. If you lose your Master Password, these codes are the ONLY way to regain access.
+            </p>
+            <div id="recovery-codes-list" class="recovery-codes-grid font-mono"></div>
+            <div style="display:flex; gap:10px; margin-top:16px;">
+                <button type="button" class="btn btn-secondary" style="flex:1;" onclick="downloadRecoveryKit()">📥 Download PDF/TXT</button>
+                <button type="button" class="btn btn-primary" style="flex:1;" onclick="proceedToVault()">Enter Vault →</button>
+            </div>
+        </div>
+
+        <div class="auth-footer-note">
+            <span>🔒 AES-256-GCM + PBKDF2-HMAC-SHA256 (600k Rounds)</span>
+        </div>
+    </div>
+</div>
+
+<style>
+.auth-page-wrapper {
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+}
+.auth-container {
+    background: var(--bg-surface);
+    border: 1px solid var(--border-medium);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 440px;
+    padding: 36px 32px;
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+.auth-brand {
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+.auth-subtitle {
+    font-size: 0.85rem;
+    color: var(--text-secondary);
+}
+.auth-tabs {
+    display: flex;
+    background: var(--bg-surface-elevated);
+    border-radius: var(--radius-md);
+    padding: 4px;
+    border: 1px solid var(--border-subtle);
+}
+.auth-tab-btn {
+    flex: 1;
+    padding: 9px;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.88rem;
+    font-weight: 600;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+.auth-tab-btn.active {
+    background: var(--color-primary);
+    color: var(--color-primary-text);
+}
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+.alert-box {
+    padding: 10px 14px;
+    border-radius: var(--radius-md);
+    font-size: 0.85rem;
+    line-height: 1.4;
+}
+.alert-box.alert-error {
+    background: var(--color-danger-bg);
+    border: 1px solid var(--color-danger);
+    color: #fca5a5;
+}
+.alert-box.alert-success {
+    background: var(--color-success-bg);
+    border: 1px solid var(--color-success);
+    color: #86efac;
+}
+.recovery-kit-wrapper {
+    background: var(--bg-surface-elevated);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 18px;
+    text-align: center;
+}
+.recovery-codes-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+    background: var(--bg-input);
+    padding: 12px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border-subtle);
+    font-size: 0.95rem;
+    color: var(--color-primary);
+}
+.auth-footer-note {
+    text-align: center;
+    font-size: 0.75rem;
+    color: var(--text-muted);
+    font-family: var(--font-mono);
+    border-top: 1px solid var(--border-subtle);
+    padding-top: 16px;
+}
+.hidden { display: none !important; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let generatedRecoveryCodes = [];
+
+function showAuthTab(tab) {
+    window.soundEngine.play('tab');
+    hideAlert();
+    const isLogin = tab === 'login';
+    document.getElementById('tab-login-btn').classList.toggle('active', isLogin);
+    document.getElementById('tab-register-btn').classList.toggle('active', !isLogin);
+    document.getElementById('form-login').classList.toggle('hidden', !isLogin);
+    document.getElementById('form-register').classList.toggle('hidden', isLogin);
+    document.getElementById('recovery-kit-box').classList.add('hidden');
+}
+
+function togglePass(id) {
+    const el = document.getElementById(id);
+    if (el) {
+        window.soundEngine.play('click');
+        el.type = el.type === 'password' ? 'text' : 'password';
+    }
+}
+
+function showAlert(msg, isError = true) {
+    const el = document.getElementById('auth-alert');
+    el.textContent = msg;
+    el.className = `alert-box ${isError ? 'alert-error' : 'alert-success'}`;
+    el.classList.remove('hidden');
+}
+
+function hideAlert() {
+    const el = document.getElementById('auth-alert');
+    el.classList.add('hidden');
+}
+
+function evaluateRegStrength(val) {
+    const r = CryptoHelper.evaluatePasswordStrength(val);
+    const fill = document.getElementById('reg-strength-fill');
+    const label = document.getElementById('reg-strength-label');
+    const ent = document.getElementById('reg-entropy-label');
+
+    if (fill) {
+        fill.style.width = r.width;
+        fill.style.backgroundColor = r.color;
+    }
+    if (label) label.textContent = `Strength: ${r.label}`;
+    if (ent) ent.textContent = `${r.entropy} bits`;
+}
+
+async function handleLoginSubmit(e) {
+    e.preventDefault();
+    hideAlert();
+    const username = document.getElementById('login-username').value.trim();
+    const password = document.getElementById('login-password').value;
+    const token = document.getElementById('login-2fa-token').value.trim();
+
+    const submitBtn = document.getElementById('btn-login-submit');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Decrypting Vault... ⏳';
+
+    try {
+        const res = await fetch('/api/auth/login', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, password, token })
+        });
+        const data = await res.json();
+
+        if (data.requires_2fa) {
+            window.soundEngine.play('warning');
+            document.getElementById('group-2fa-code').classList.remove('hidden');
+            document.getElementById('login-2fa-token').focus();
+            showAlert('2FA enabled: Please enter your 6-digit authenticator code or recovery key.', false);
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Verify & Unlock 🔓';
+            return;
+        }
+
+        if (data.success) {
+            window.soundEngine.play('unlock');
+            showAlert('Vault Unlocked! Redirecting...', false);
+            setTimeout(() => {
+                window.location.href = '/';
+            }, 500);
+        } else {
+            window.soundEngine.play('warning');
+            showAlert(data.error || 'Authentication failed. Please verify credentials.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Unlock Vault 🔓';
+        }
+    } catch (err) {
+        window.soundEngine.play('warning');
+        showAlert('Network or server error during login.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Unlock Vault 🔓';
+    }
+}
+
+async function handleRegisterSubmit(e) {
+    e.preventDefault();
+    hideAlert();
+    const username = document.getElementById('reg-username').value.trim();
+    const email = document.getElementById('reg-email').value.trim();
+    const password = document.getElementById('reg-password').value;
+    const confirm = document.getElementById('reg-confirm-password').value;
+
+    if (password !== confirm) {
+        window.soundEngine.play('warning');
+        showAlert('Passwords do not match.');
+        return;
+    }
+
+    if (password.length < 12) {
+        window.soundEngine.play('warning');
+        showAlert('Master password must be at least 12 characters.');
+        return;
+    }
+
+    const submitBtn = document.getElementById('btn-register-submit');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = 'Deriving Cryptographic Keys... ⏳';
+
+    try {
+        const res = await fetch('/api/auth/register', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ username, email, password })
+        });
+        const data = await res.json();
+
+        if (data.success) {
+            window.soundEngine.play('success');
+            generatedRecoveryCodes = data.recovery_codes || [];
+            
+            // Show recovery kit
+            document.getElementById('form-register').classList.add('hidden');
+            document.getElementById('auth-tab-buttons').classList.add('hidden');
+            const codeList = document.getElementById('recovery-codes-list');
+            codeList.innerHTML = generatedRecoveryCodes.map(c => `<div>${c}</div>`).join('');
+            document.getElementById('recovery-kit-box').classList.remove('hidden');
+        } else {
+            window.soundEngine.play('warning');
+            showAlert(data.error || 'Registration failed.');
+            submitBtn.disabled = false;
+            submitBtn.innerHTML = 'Initialize Vault 🛡️';
+        }
+    } catch (err) {
+        showAlert('Network error during registration.');
+        submitBtn.disabled = false;
+        submitBtn.innerHTML = 'Initialize Vault 🛡️';
+    }
+}
+
+function downloadRecoveryKit() {
+    window.soundEngine.play('click');
+    const text = `SENTINELVAULT EMERGENCY RECOVERY CODES\n======================================\nGenerated: ${new Date().toISOString()}\nUser: ${document.getElementById('reg-username').value}\n\nRECOVERY CODES:\n${generatedRecoveryCodes.join('\n')}\n\nKeep this document stored in a secure physical location.`;
+    const blob = new Blob([text], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `sentinel-vault-recovery-kit.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+}
+
+function proceedToVault() {
+    window.location.href = '/';
+}
+</script>
+{% endblock %}
