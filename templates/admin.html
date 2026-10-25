@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+
+{% block title %}SentinelVault — Admin Dashboard{% endblock %}
+
+{% block content %}
+<div style="max-width:1200px;margin:40px auto;padding:24px;font-family:Arial,sans-serif;">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;">
+        <div>
+            <h1>🛡️ Admin Dashboard</h1>
+            <p>Review account activity and authentication events.</p>
+        </div>
+        <div>
+            <button id="refresh-btn" type="button">Refresh activity</button>
+            <a href="/">Back to Vault</a>
+        </div>
+    </div>
+
+    <p id="status" role="status">Loading activity…</p>
+
+    <div style="overflow-x:auto;">
+        <table style="width:100%;border-collapse:collapse;text-align:left;">
+            <thead>
+                <tr>
+                    <th style="padding:12px;border-bottom:2px solid #888;">Time</th>
+                    <th style="padding:12px;border-bottom:2px solid #888;">Username</th>
+                    <th style="padding:12px;border-bottom:2px solid #888;">Email</th>
+                    <th style="padding:12px;border-bottom:2px solid #888;">Event</th>
+                    <th style="padding:12px;border-bottom:2px solid #888;">Status</th>
+                    <th style="padding:12px;border-bottom:2px solid #888;">IP address</th>
+                </tr>
+            </thead>
+            <tbody id="activity-rows">
+                <tr><td colspan="6" style="padding:12px;">Loading…</td></tr>
+            </tbody>
+        </table>
+    </div>
+
+    <p style="margin-top:20px;font-size:13px;">
+        Displays up to 200 recent audit events. IP addresses may be affected by
+        proxy configuration. No vault passwords or stored secrets are displayed.
+    </p>
+</div>
+
+<script>
+(() => {
+    const status = document.getElementById("status");
+    const rows = document.getElementById("activity-rows");
+    const refreshButton = document.getElementById("refresh-btn");
+
+    function cell(value) {
+        const td = document.createElement("td");
+        td.style.padding = "12px";
+        td.style.borderBottom = "1px solid #888";
+        td.textContent = value == null || value === "" ? "—" : String(value);
+        return td;
+    }
+
+    async function loadActivity() {
+        refreshButton.disabled = true;
+        status.textContent = "Loading activity…";
+        rows.replaceChildren();
+
+        try {
+            const response = await fetch("/api/admin/audit-logs", {
+                credentials: "same-origin",
+                headers: { "Accept": "application/json" }
+            });
+
+            if (response.status === 401) {
+                status.textContent = "Your session has expired. Please log in again.";
+                return;
+            }
+
+            if (response.status === 403) {
+                status.textContent = "Access denied. This account is not configured as the administrator.";
+                return;
+            }
+
+            if (!response.ok) {
+                throw new Error("The server returned HTTP " + response.status);
+            }
+
+            const data = await response.json();
+
+            if (!data.success || !Array.isArray(data.logs)) {
+                throw new Error("Unexpected response from the server.");
+            }
+
+            if (data.logs.length === 0) {
+                rows.appendChild(cell("No audit events found."));
+                status.textContent = "No activity recorded yet.";
+                return;
+            }
+
+            for (const log of data.logs) {
+                const tr = document.createElement("tr");
+                tr.append(
+                    cell(log.timestamp),
+                    cell(log.username),
+                    cell(log.email),
+                    cell(log.action),
+                    cell(log.status),
+                    cell(log.ip_address)
+                );
+                rows.appendChild(tr);
+            }
+
+            status.textContent = "Showing " + data.logs.length + " recent audit events.";
+        } catch (error) {
+            status.textContent = "Could not load activity. Please try again.";
+            console.error(error);
+        } finally {
+            refreshButton.disabled = false;
+        }
+    }
+
+    refreshButton.addEventListener("click", loadActivity);
+    loadActivity();
+})();
+</script>
+{% endblock %}
